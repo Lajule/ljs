@@ -1,0 +1,319 @@
+#include <argp.h>
+#include <pthread.h>
+#include <regex.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <jansson.h>
+#include <microhttpd.h>
+
+struct ljs_s {
+	char              *input_file;
+	int               server_port;
+	json_t            *root_node;
+	pthread_mutex_t	  root_node_mutex;
+	struct MHD_Daemon *httpd;
+};
+
+struct con_info_s {
+	size_t size;
+	char   *data;
+};
+
+struct http_route_s {
+	char *method;
+	int  (*handler)(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+};
+
+#define OK(c, r)	build_response(c, MHD_HTTP_OK, r, MHD_RESPMEM_MUST_FREE)
+#define BAD_REQUEST(c)	build_response(c, MHD_HTTP_BAD_REQUEST, "{\"msg\": \"Bad request\"}", MHD_RESPMEM_PERSISTENT)
+#define NOT_FOUND(c)	build_response(c, MHD_HTTP_NOT_FOUND, "{\"msg\": \"Not found\"}", MHD_RESPMEM_PERSISTENT)
+
+static error_t parse_command_line(int, char *, struct argp_state *);
+static void load_input_file();
+static void start_deamon();
+static int answer_to_connection(void *, struct MHD_Connection *, const char *, const char *, const char *, const char *,
+				size_t *, void **);
+static void signal_handler(int);
+static int get_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int post_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int put_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int patch_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int delete_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int build_response(struct MHD_Connection *, int, const char *, int);
+static char *get_str(const char *, regmatch_t);
+
+const char *argp_program_version = "@PACKAGE_NAME@ @PACKAGE_VERSION@";
+
+const char *argp_program_bug_address = "<@PACKAGE_BUGREPORT@>";
+
+static struct argp_option options[] = {
+	{ "port", 'p', "PORT", 0, "Server port (default 8080)" },
+	{ NULL }
+};
+
+static const char args_doc[] = "[FILE]";
+
+static const char doc[] = "@PACKAGE_NAME@ -- Little JSON server";
+
+static struct argp argp = { options, &parse_command_line, args_doc, doc };
+
+static struct ljs_s ljs = { NULL, 8080, NULL, PTHREAD_MUTEX_INITIALIZER, NULL };
+
+struct http_route_s http_routes[] = {
+	{ MHD_HTTP_METHOD_GET, get_handler},
+	{ MHD_HTTP_METHOD_POST, post_handler},
+	{ MHD_HTTP_METHOD_PUT, put_handler},
+	{ MHD_HTTP_METHOD_PATCH, patch_handler},
+	{ MHD_HTTP_METHOD_DELETE, delete_handler},
+	{ NULL }
+};
+
+int
+main(int argc, char *argv[]) {
+	argp_parse(&argp, argc, argv, 0, 0, NULL);
+	load_input_file();
+	start_deamon();
+	return EXIT_SUCCESS;
+}
+
+static error_t
+parse_command_line(int key, char *arg, struct argp_state *state) {
+	switch (key) {
+		case 'p':
+			if (sscanf(arg, "%d", &(ljs.server_port)) != 1 || ljs.server_port <= 0) {
+				argp_error(state, "%s: Invalid port number", arg);
+			}
+			break;
+
+		case ARGP_KEY_ARG:
+			if (state->arg_num >= 1) {
+				argp_usage(state);
+			}
+			ljs.input_file = arg;
+			break;
+
+		default:
+			return ARGP_ERR_UNKNOWN;
+	}
+
+	return 0;
+}
+
+static void
+load_input_file() {
+	FILE *fd = stdin;
+
+	if (ljs.input_file) {
+		fd = fopen(ljs.input_file, "rw");
+		if (fd == NULL) {
+			fprintf(stderr, "@PACKAGE_NAME@: %s: %s\n", ljs.input_file, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	json_error_t error;
+	ljs.root_node = json_loadf(fd, 0, &error);
+
+	if (ljs.root_node == NULL) {
+		fprintf(stderr, "@PACKAGE_NAME@: %s(%d): %s\n", ljs.input_file, error.line, error.text);
+		exit(EXIT_FAILURE);
+	}
+
+	if (fd != stdin) {
+		fclose(fd);
+	}
+}
+
+static void
+start_deamon() {
+	ljs.httpd = MHD_start_daemon(MHD_USE_AUTO|MHD_USE_INTERNAL_POLLING_THREAD, ljs.server_port, NULL, NULL,
+				     &answer_to_connection, NULL, MHD_OPTION_END);
+
+	if (ljs.httpd == NULL) {
+		fputs("@PACKAGE_NAME@: Can not start deamon\n", stderr);
+		exit(EXIT_FAILURE);
+	}
+
+	signal(SIGINT, signal_handler);
+
+	while (1) {
+		pause();
+	}
+}
+
+static int
+answer_to_connection(void *cls, struct MHD_Connection *connection, const char *url, const char *method,
+		     const char *version, const char *upload_data, size_t *upload_data_size, void **con_cls) {
+	regex_t re;
+	regcomp(&re, "^/([a-zA-Z0-9_-]+)(/[0-9]+)?(\\?.*)?$", REG_EXTENDED);
+
+	if (!*con_cls) {
+		struct con_info_s *con_info = calloc(1, sizeof(struct con_info_s));
+
+		if (!con_info) {
+			return MHD_NO;
+		}
+
+		con_info->size = 0;
+
+		const char *length = MHD_lookup_connection_value(connection, MHD_HEADER_KIND,
+								 MHD_HTTP_HEADER_CONTENT_LENGTH);
+
+		if (length) {
+			con_info->data = calloc(atoi(length) + 1, sizeof(char));
+		} else {
+			con_info->data = NULL;
+		}
+
+		*con_cls = con_info;
+		return MHD_YES;
+	}
+
+	struct con_info_s *con_info = *con_cls;
+
+	if (*upload_data_size) {
+		memcpy(con_info->data + con_info->size, upload_data, *upload_data_size);
+		con_info->size += *upload_data_size;
+		*upload_data_size = 0;
+		return MHD_YES;
+	}
+
+	int ret;
+	regmatch_t pmatch[re.re_nsub];
+
+	if (!regexec(&re, url, re.re_nsub, pmatch, 0)) {
+		int idx = 0;
+
+		while (http_routes[idx].method) {
+			if (!strcmp(method, http_routes[idx].method)) {
+				ret = http_routes[idx].handler(connection, url, pmatch, con_info->data);
+				break;
+			}
+
+			++idx;
+		}
+
+		if (!http_routes[idx].method) {
+			ret = BAD_REQUEST(connection);
+		}
+	} else {
+		ret = NOT_FOUND(connection);
+	}
+
+	if (con_info->data) {
+		free(con_info->data);
+	}
+
+	free(con_info);
+	*con_cls = NULL;
+
+	regfree(&re);
+	return ret;
+}
+
+static void
+signal_handler(int sig) {
+	signal(sig, SIG_IGN);
+	MHD_stop_daemon(ljs.httpd);
+	json_decref(ljs.root_node);
+	exit(EXIT_SUCCESS);
+}
+
+static int
+get_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+	int ret;
+	pthread_mutex_lock(&(ljs.root_node_mutex));
+
+	char *key = get_str(url, pmatch[1]);
+	json_t *nodes = json_object_get(ljs.root_node, key);
+
+	if (nodes && json_is_array(nodes)) {
+		if (pmatch[2].rm_so != -1) {
+		  char *res = NULL;
+		  char *id = get_str(url, pmatch[2]);
+
+		  size_t index;
+		  json_t *node;
+		  json_array_foreach(nodes, index, node) {
+			if (json_is_object(node)) {
+				json_t *v = json_object_get(node, "id");
+
+				if (v && json_is_integer(v) && json_integer_value(v) == atol(id + 1)) {
+					res = json_dumps(node, JSON_COMPACT);
+					break;
+				}
+			}
+		  }
+
+		  if (res) {
+			ret = OK(connection, res);
+		  } else {
+			ret = NOT_FOUND(connection);
+		  }
+
+		  free(id);
+		} else {
+			ret = OK(connection, json_dumps(nodes, JSON_COMPACT));
+		}
+	} else {
+		ret = NOT_FOUND(connection);
+	}
+
+	free(key);
+	pthread_mutex_unlock(&(ljs.root_node_mutex));
+	return ret;
+}
+
+static int
+post_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+	int ret;
+	pthread_mutex_lock(&(ljs.root_node_mutex));
+
+	char *key = get_str(url, pmatch[1]);
+	json_t *nodes = json_object_get(ljs.root_node, key);
+
+	if (nodes && json_is_array(nodes)) {
+		printf("%s\n", string);
+		ret = NOT_FOUND(connection);
+	} else {
+		ret = BAD_REQUEST(connection);
+	}
+
+	free(key);
+	pthread_mutex_unlock(&(ljs.root_node_mutex));
+	return ret;
+}
+
+static int
+put_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+	return BAD_REQUEST(connection);
+}
+
+static int
+patch_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+	return BAD_REQUEST(connection);
+}
+
+static int
+delete_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+	return BAD_REQUEST(connection);
+}
+
+static int
+build_response(struct MHD_Connection *connection, int status_code, const char *buffer, int flag) {
+	struct MHD_Response *response = MHD_create_response_from_buffer(strlen(buffer), (void *)buffer, flag);
+	MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "application/json");
+
+       	int ret = MHD_queue_response(connection, status_code, response);
+	MHD_destroy_response(response);
+       	return ret;
+}
+
+static char *
+get_str(const char *string, regmatch_t pmatch) {
+	char *s = calloc(pmatch.rm_eo - pmatch.rm_so + 1, sizeof(char));
+	return strncpy(s, string + pmatch.rm_so, pmatch.rm_eo - pmatch.rm_so);
+}
