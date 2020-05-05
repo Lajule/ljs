@@ -10,26 +10,26 @@
 #include <microhttpd.h>
 
 struct ljs_s {
-	char              *input_file;
-	int               server_port;
-	json_t            *root_node;
-	pthread_mutex_t	  root_node_mutex;
+	char *input_file;
+	int server_port;
+	json_t *root_node;
+	pthread_mutex_t root_node_mutex;
 	struct MHD_Daemon *httpd;
 };
 
 struct con_info_s {
 	size_t size;
-	char   *data;
+	char *data;
 };
 
 struct http_route_s {
 	char *method;
-	int  (*handler)(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+	int (*handler)(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 };
 
-#define OK(c, r)	build_response(c, MHD_HTTP_OK, r, MHD_RESPMEM_MUST_FREE)
-#define BAD_REQUEST(c)	build_response(c, MHD_HTTP_BAD_REQUEST, "{\"msg\": \"Bad request\"}", MHD_RESPMEM_PERSISTENT)
-#define NOT_FOUND(c)	build_response(c, MHD_HTTP_NOT_FOUND, "{\"msg\": \"Not found\"}", MHD_RESPMEM_PERSISTENT)
+#define OK(c, r) build_response(c, MHD_HTTP_OK, r, MHD_RESPMEM_MUST_FREE)
+#define BAD_REQUEST(c) build_response(c, MHD_HTTP_BAD_REQUEST, "{\"msg\": \"Bad request\"}", MHD_RESPMEM_PERSISTENT)
+#define NOT_FOUND(c) build_response(c, MHD_HTTP_NOT_FOUND, "{\"msg\": \"Not found\"}", MHD_RESPMEM_PERSISTENT)
 
 static error_t parse_command_line(int, char *, struct argp_state *);
 static void load_input_file();
