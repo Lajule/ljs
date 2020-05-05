@@ -1,0 +1,6 @@
+[submodule "libs/jansson"]
+	path = libs/jansson
+	url = https://github.com/akheron/jansson
+[submodule "libs/libmicrohttpd"]
+	path = libs/libmicrohttpd
+	url = https://github.com/Karlson2k/libmicrohttpd
