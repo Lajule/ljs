@@ -102,9 +102,8 @@ am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_ljs_OBJECTS = ljs.$(OBJEXT)
 ljs_OBJECTS = $(am_ljs_OBJECTS)
-ljs_DEPENDENCIES =  \
-	$(top_builddir)/libs/jansson-2.12/src/libjansson.la \
-	$(top_builddir)/libs/libmicrohttpd-0.9.70/src/microhttpd/libmicrohttpd.la
+ljs_DEPENDENCIES = $(top_builddir)/libs/jansson/src/libjansson.la \
+	$(top_builddir)/libs/libmicrohttpd/src/microhttpd/libmicrohttpd.la
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
@@ -294,14 +293,14 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CPPFLAGS = \
 	-Wall \
-	-I$(top_srcdir)/libs/jansson-2.12/src \
-	-I$(top_builddir)/libs/jansson-2.12/src \
-	-I$(top_srcdir)/libs/libmicrohttpd-0.9.70/src/include
+	-I$(top_srcdir)/libs/jansson/src \
+	-I$(top_builddir)/libs/jansson/src \
+	-I$(top_srcdir)/libs/libmicrohttpd/src/include
 
 ljs_SOURCES = ljs.c
 ljs_LDADD = \
-	$(top_builddir)/libs/jansson-2.12/src/libjansson.la \
-	$(top_builddir)/libs/libmicrohttpd-0.9.70/src/microhttpd/libmicrohttpd.la
+	$(top_builddir)/libs/jansson/src/libjansson.la \
+	$(top_builddir)/libs/libmicrohttpd/src/microhttpd/libmicrohttpd.la
 
 ljs_LDFLAGS = -static
 all: all-am

@@ -775,8 +775,8 @@ CPPFLAGS
 LT_SYS_LIBRARY_PATH
 CPP'
 ac_subdirs_all='
-	libs/jansson-2.12
-	libs/libmicrohttpd-0.9.70
+	libs/jansson
+	libs/libmicrohttpd
 '
 
 # Initialize some variables set by options.
@@ -12106,7 +12106,7 @@ fi
 
 
 
-subdirs="$subdirs libs/jansson-2.12 libs/libmicrohttpd-0.9.70"
+subdirs="$subdirs libs/jansson libs/libmicrohttpd"
 
 ac_config_files="$ac_config_files Makefile libs/Makefile src/Makefile src/ljs.c"
 

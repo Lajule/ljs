@@ -12,8 +12,8 @@ AC_CHECK_HEADERS([argp.h signal])
 AC_CHECK_LIB(pthread, pthread_create)
 
 AC_CONFIG_SUBDIRS([
-	libs/jansson-2.12
-	libs/libmicrohttpd-0.9.70
+	libs/jansson
+	libs/libmicrohttpd
 ])
 AC_CONFIG_FILES([
 	Makefile
