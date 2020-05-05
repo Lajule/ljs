@@ -74,8 +74,11 @@ struct http_route_s http_routes[] = {
 int
 main(int argc, char *argv[]) {
 	argp_parse(&argp, argc, argv, 0, 0, NULL);
+
 	load_input_file();
+
 	start_deamon();
+
 	return EXIT_SUCCESS;
 }
 
@@ -108,7 +111,8 @@ load_input_file() {
 
 	if (ljs.input_file) {
 		fd = fopen(ljs.input_file, "rw");
-		if (fd == NULL) {
+
+		if (!fd) {
 			fprintf(stderr, "@PACKAGE_NAME@: %s: %s\n", ljs.input_file, strerror(errno));
 			exit(EXIT_FAILURE);
 		}
@@ -117,7 +121,7 @@ load_input_file() {
 	json_error_t error;
 	ljs.root_node = json_loadf(fd, 0, &error);
 
-	if (ljs.root_node == NULL) {
+	if (!ljs.root_node) {
 		fprintf(stderr, "@PACKAGE_NAME@: %s(%d): %s\n", ljs.input_file, error.line, error.text);
 		exit(EXIT_FAILURE);
 	}
@@ -132,7 +136,7 @@ start_deamon() {
 	ljs.httpd = MHD_start_daemon(MHD_USE_AUTO|MHD_USE_INTERNAL_POLLING_THREAD, ljs.server_port, NULL, NULL,
 				     &answer_to_connection, NULL, MHD_OPTION_END);
 
-	if (ljs.httpd == NULL) {
+	if (!ljs.httpd) {
 		fputs("@PACKAGE_NAME@: Can not start deamon\n", stderr);
 		exit(EXIT_FAILURE);
 	}
@@ -217,8 +221,16 @@ answer_to_connection(void *cls, struct MHD_Connection *connection, const char *u
 static void
 signal_handler(int sig) {
 	signal(sig, SIG_IGN);
+
 	MHD_stop_daemon(ljs.httpd);
+
+	if (ljs.input_file) {
+		printf("Writting changes to %s\n", ljs.input_file);
+		json_dump_file(ljs.root_node, ljs.input_file, JSON_COMPACT);
+	}
+
 	json_decref(ljs.root_node);
+
 	exit(EXIT_SUCCESS);
 }
 
@@ -276,10 +288,17 @@ post_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pma
 	json_t *nodes = json_object_get(ljs.root_node, key);
 
 	if (nodes && json_is_array(nodes)) {
-		printf("%s\n", string);
-		ret = NOT_FOUND(connection);
+	  	json_error_t error;
+		json_t *node = json_loads(string, 0, &error);
+
+		if (node) {
+			json_array_append_new(nodes, node);
+			ret = OK(connection, json_dumps(node, JSON_COMPACT));
+		} else {
+			ret = BAD_REQUEST(connection);
+		}
 	} else {
-		ret = BAD_REQUEST(connection);
+		ret = NOT_FOUND(connection);
 	}
 
 	free(key);
