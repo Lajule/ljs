@@ -1,5 +1,4 @@
 #include <argp.h>
-#include <pthread.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdio.h>
@@ -13,7 +12,6 @@ struct ljs_s {
 	char *input_file;
 	int server_port;
 	json_t *root_node;
-	pthread_mutex_t root_node_mutex;
 	struct MHD_Daemon *httpd;
 };
 
@@ -22,7 +20,7 @@ struct con_info_s {
 	char *data;
 };
 
-struct http_route_s {
+struct http_handler_s {
 	char *method;
 	int (*handler)(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 };
@@ -36,7 +34,7 @@ static void load_input_file();
 static void start_deamon();
 static int answer_to_connection(void *, struct MHD_Connection *, const char *, const char *, const char *, const char *,
 				size_t *, void **);
-static void signal_handler(int);
+static void sigint_handler(int);
 static int get_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 static int post_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 static int put_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
@@ -60,16 +58,7 @@ static const char doc[] = "@PACKAGE_NAME@ -- Little JSON server";
 
 static struct argp argp = { options, &parse_command_line, args_doc, doc };
 
-static struct ljs_s ljs = { NULL, 8080, NULL, PTHREAD_MUTEX_INITIALIZER, NULL };
-
-struct http_route_s http_routes[] = {
-	{ MHD_HTTP_METHOD_GET, get_handler},
-	{ MHD_HTTP_METHOD_POST, post_handler},
-	{ MHD_HTTP_METHOD_PUT, put_handler},
-	{ MHD_HTTP_METHOD_PATCH, patch_handler},
-	{ MHD_HTTP_METHOD_DELETE, delete_handler},
-	{ NULL }
-};
+static struct ljs_s ljs = { NULL, 8080, NULL, NULL };
 
 int
 main(int argc, char *argv[]) {
@@ -141,7 +130,7 @@ start_deamon() {
 		exit(EXIT_FAILURE);
 	}
 
-	signal(SIGINT, signal_handler);
+	signal(SIGINT, sigint_handler);
 
 	while (1) {
 		pause();
@@ -151,9 +140,6 @@ start_deamon() {
 static int
 answer_to_connection(void *cls, struct MHD_Connection *connection, const char *url, const char *method,
 		     const char *version, const char *upload_data, size_t *upload_data_size, void **con_cls) {
-	regex_t re;
-	regcomp(&re, "^/([a-zA-Z0-9_-]+)(/[0-9]+)?(\\?.*)?$", REG_EXTENDED);
-
 	if (!*con_cls) {
 		struct con_info_s *con_info = calloc(1, sizeof(struct con_info_s));
 
@@ -185,22 +171,33 @@ answer_to_connection(void *cls, struct MHD_Connection *connection, const char *u
 		return MHD_YES;
 	}
 
+	regex_t re;
+	regcomp(&re, "^/([a-zA-Z0-9_-]+)(/[0-9]+)?(\\?.*)?$", REG_EXTENDED);
+
 	int ret;
 	regmatch_t pmatch[re.re_nsub];
 
 	if (!regexec(&re, url, re.re_nsub, pmatch, 0)) {
 		int idx = 0;
+		struct http_handler_s handlers[] = {
+			{ MHD_HTTP_METHOD_GET, get_handler},
+			{ MHD_HTTP_METHOD_POST, post_handler},
+			{ MHD_HTTP_METHOD_PUT, put_handler},
+			{ MHD_HTTP_METHOD_PATCH, patch_handler},
+			{ MHD_HTTP_METHOD_DELETE, delete_handler},
+			{ NULL }
+		};
 
-		while (http_routes[idx].method) {
-			if (!strcmp(method, http_routes[idx].method)) {
-				ret = http_routes[idx].handler(connection, url, pmatch, con_info->data);
+		while (handlers[idx].method) {
+			if (!strcmp(method, handlers[idx].method)) {
+				ret = handlers[idx].handler(connection, url, pmatch, con_info->data);
 				break;
 			}
 
 			++idx;
 		}
 
-		if (!http_routes[idx].method) {
+		if (!handlers[idx].method) {
 			ret = BAD_REQUEST(connection);
 		}
 	} else {
@@ -219,7 +216,7 @@ answer_to_connection(void *cls, struct MHD_Connection *connection, const char *u
 }
 
 static void
-signal_handler(int sig) {
+sigint_handler(int sig) {
 	signal(sig, SIG_IGN);
 
 	MHD_stop_daemon(ljs.httpd);
@@ -237,7 +234,6 @@ signal_handler(int sig) {
 static int
 get_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	int ret;
-	pthread_mutex_lock(&(ljs.root_node_mutex));
 
 	char *key = get_str(url, pmatch[1]);
 	json_t *nodes = json_object_get(ljs.root_node, key);
@@ -275,14 +271,13 @@ get_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmat
 	}
 
 	free(key);
-	pthread_mutex_unlock(&(ljs.root_node_mutex));
+
 	return ret;
 }
 
 static int
 post_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	int ret;
-	pthread_mutex_lock(&(ljs.root_node_mutex));
 
 	char *key = get_str(url, pmatch[1]);
 	json_t *nodes = json_object_get(ljs.root_node, key);
@@ -302,7 +297,7 @@ post_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pma
 	}
 
 	free(key);
-	pthread_mutex_unlock(&(ljs.root_node_mutex));
+
 	return ret;
 }
 
