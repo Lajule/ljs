@@ -12,6 +12,7 @@ struct ljs_s {
 	char *input_file;
 	int server_port;
 	json_t *root_node;
+	regex_t *url_regex;
 	struct MHD_Daemon *httpd;
 };
 
@@ -25,13 +26,18 @@ struct http_handler_s {
 	int (*handler)(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 };
 
+#define URL_REGEX "^/([a-zA-Z0-9_-]+)(/[0-9]+)?(\\?.*)?$"
+
 #define OK(c, r) build_http_response(c, MHD_HTTP_OK, r, MHD_RESPMEM_MUST_FREE)
+
 #define BAD_REQUEST(c) build_http_response(c, MHD_HTTP_BAD_REQUEST, "{\"msg\": \"Bad request\"}", \
 					   MHD_RESPMEM_PERSISTENT)
+
 #define NOT_FOUND(c) build_http_response(c, MHD_HTTP_NOT_FOUND, "{\"msg\": \"Not found\"}", MHD_RESPMEM_PERSISTENT)
 
 static error_t parse_command_line(int, char *, struct argp_state *);
 static void load_input_file();
+static void compile_url_regex();
 static void start_http_deamon();
 static void sigint_signal_handler(int);
 static int answer_to_connection(void *, struct MHD_Connection *, const char *, const char *, const char *, const char *,
@@ -59,13 +65,15 @@ static const char doc[] = "@PACKAGE_NAME@ -- Little JSON server";
 
 static struct argp argp = { options, &parse_command_line, args_doc, doc };
 
-static struct ljs_s ljs = { NULL, 8080, NULL, NULL };
+static struct ljs_s ljs = { NULL, 8080, NULL, NULL, NULL };
 
 int
 main(int argc, char *argv[]) {
 	argp_parse(&argp, argc, argv, 0, 0, NULL);
 
 	load_input_file();
+
+	compile_url_regex();
 
 	start_http_deamon();
 
@@ -122,6 +130,19 @@ load_input_file() {
 }
 
 static void
+compile_url_regex()
+{
+	ljs.url_regex = calloc(1, sizeof(regex_t));
+
+	if (!ljs.url_regex) {
+		fputs("@PACKAGE_NAME@: Can not create regular expression\n", stderr);
+		exit(EXIT_FAILURE);
+	}
+
+	regcomp(ljs.url_regex, URL_REGEX, REG_EXTENDED);
+}
+
+static void
 start_http_deamon() {
 	ljs.httpd = MHD_start_daemon(MHD_USE_AUTO|MHD_USE_INTERNAL_POLLING_THREAD, ljs.server_port, NULL, NULL,
 				     &answer_to_connection, NULL, MHD_OPTION_END);
@@ -148,6 +169,8 @@ sigint_signal_handler(int sig) {
 		printf("Writting changes to %s\n", ljs.input_file);
 		json_dump_file(ljs.root_node, ljs.input_file, JSON_COMPACT);
 	}
+
+	regfree(ljs.url_regex);
 
 	json_decref(ljs.root_node);
 
@@ -188,13 +211,10 @@ answer_to_connection(void *cls, struct MHD_Connection *connection, const char *u
 		return MHD_YES;
 	}
 
-	regex_t re;
-	regcomp(&re, "^/([a-zA-Z0-9_-]+)(/[0-9]+)?(\\?.*)?$", REG_EXTENDED);
-
 	int ret;
-	regmatch_t pmatch[re.re_nsub];
+	regmatch_t pmatch[ljs.url_regex->re_nsub];
 
-	if (!regexec(&re, url, re.re_nsub, pmatch, 0)) {
+	if (!regexec(ljs.url_regex, url, ljs.url_regex->re_nsub, pmatch, 0)) {
 		int idx = 0;
 		struct http_handler_s handlers[] = {
 			{ MHD_HTTP_METHOD_GET, get_http_handler},
@@ -228,7 +248,6 @@ answer_to_connection(void *cls, struct MHD_Connection *connection, const char *u
 	free(con_info);
 	*con_cls = NULL;
 
-	regfree(&re);
 	return ret;
 }
 
