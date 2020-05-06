@@ -45,7 +45,6 @@ static int answer_to_connection(void *, struct MHD_Connection *, const char *, c
 static int get_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 static int post_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 static int put_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
-static int patch_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 static int delete_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 static int build_http_response(struct MHD_Connection *, int, const char *, int);
 static char *get_str(const char *, regmatch_t);
@@ -220,7 +219,6 @@ answer_to_connection(void *cls, struct MHD_Connection *connection, const char *u
 			{ MHD_HTTP_METHOD_GET, get_http_handler},
 			{ MHD_HTTP_METHOD_POST, post_http_handler},
 			{ MHD_HTTP_METHOD_PUT, put_http_handler},
-			{ MHD_HTTP_METHOD_PATCH, patch_http_handler},
 			{ MHD_HTTP_METHOD_DELETE, delete_http_handler},
 			{ NULL }
 		};
@@ -231,7 +229,7 @@ answer_to_connection(void *cls, struct MHD_Connection *connection, const char *u
 				break;
 			}
 
-			++idx;
+			idx += 1;
 		}
 
 		if (!handlers[idx].method) {
@@ -264,13 +262,13 @@ get_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t 
 		  char *id = get_str(url, pmatch[2]);
 
 		  size_t index;
-		  json_t *node;
-		  json_array_foreach(nodes, index, node) {
-			if (json_is_object(node)) {
-				json_t *v = json_object_get(node, "id");
+		  json_t *current;
+		  json_array_foreach(nodes, index, current) {
+			if (json_is_object(current)) {
+				json_t *v = json_object_get(current, "id");
 
 				if (v && json_is_integer(v) && json_integer_value(v) == atol(id + 1)) {
-					res = json_dumps(node, JSON_COMPACT);
+					res = json_dumps(current, JSON_COMPACT);
 					break;
 				}
 			}
@@ -334,13 +332,20 @@ put_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t 
 		  char *id = get_str(url, pmatch[2]);
 
 		  size_t index;
-		  json_t *node;
-		  json_array_foreach(nodes, index, node) {
-			if (json_is_object(node)) {
-				json_t *v = json_object_get(node, "id");
+		  json_t *current;
+		  json_array_foreach(nodes, index, current) {
+			if (json_is_object(current)) {
+				json_t *v = json_object_get(current, "id");
 
 				if (v && json_is_integer(v) && json_integer_value(v) == atol(id + 1)) {
-					res = json_dumps(node, JSON_COMPACT);
+					json_error_t error;
+					json_t *node = json_loads(string, 0, &error);
+
+					if (node) {
+						json_array_set_new(nodes, index, node);
+						res = json_dumps(node, JSON_COMPACT);
+					}
+
 					break;
 				}
 			}
@@ -366,13 +371,48 @@ put_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t 
 }
 
 static int
-patch_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
-	return BAD_REQUEST(connection);
-}
-
-static int
 delete_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
-	return BAD_REQUEST(connection);
+	int ret;
+
+	char *key = get_str(url, pmatch[1]);
+	json_t *nodes = json_object_get(ljs.root_node, key);
+
+	if (nodes && json_is_array(nodes)) {
+		if (pmatch[2].rm_so != -1) {
+		  char *res = NULL;
+		  char *id = get_str(url, pmatch[2]);
+
+		  size_t index;
+		  json_t *current;
+		  json_array_foreach(nodes, index, current) {
+			if (json_is_object(current)) {
+				json_t *v = json_object_get(current, "id");
+
+				if (v && json_is_integer(v) && json_integer_value(v) == atol(id + 1)) {
+					res = json_dumps(current, JSON_COMPACT);
+					json_array_remove(nodes, index);
+					break;
+				}
+			}
+		  }
+
+		  if (res) {
+			ret = OK(connection, res);
+		  } else {
+			ret = NOT_FOUND(connection);
+		  }
+
+		  free(id);
+		} else {
+			ret = BAD_REQUEST(connection);
+		}
+	} else {
+		ret = NOT_FOUND(connection);
+	}
+
+	free(key);
+
+	return ret;
 }
 
 static int
