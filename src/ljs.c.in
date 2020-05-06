@@ -25,22 +25,23 @@ struct http_handler_s {
 	int (*handler)(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 };
 
-#define OK(c, r) build_response(c, MHD_HTTP_OK, r, MHD_RESPMEM_MUST_FREE)
-#define BAD_REQUEST(c) build_response(c, MHD_HTTP_BAD_REQUEST, "{\"msg\": \"Bad request\"}", MHD_RESPMEM_PERSISTENT)
-#define NOT_FOUND(c) build_response(c, MHD_HTTP_NOT_FOUND, "{\"msg\": \"Not found\"}", MHD_RESPMEM_PERSISTENT)
+#define OK(c, r) build_http_response(c, MHD_HTTP_OK, r, MHD_RESPMEM_MUST_FREE)
+#define BAD_REQUEST(c) build_http_response(c, MHD_HTTP_BAD_REQUEST, "{\"msg\": \"Bad request\"}", \
+					   MHD_RESPMEM_PERSISTENT)
+#define NOT_FOUND(c) build_http_response(c, MHD_HTTP_NOT_FOUND, "{\"msg\": \"Not found\"}", MHD_RESPMEM_PERSISTENT)
 
 static error_t parse_command_line(int, char *, struct argp_state *);
 static void load_input_file();
-static void start_deamon();
+static void start_http_deamon();
+static void sigint_signal_handler(int);
 static int answer_to_connection(void *, struct MHD_Connection *, const char *, const char *, const char *, const char *,
 				size_t *, void **);
-static void sigint_handler(int);
-static int get_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
-static int post_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
-static int put_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
-static int patch_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
-static int delete_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
-static int build_response(struct MHD_Connection *, int, const char *, int);
+static int get_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int post_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int put_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int patch_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int delete_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
+static int build_http_response(struct MHD_Connection *, int, const char *, int);
 static char *get_str(const char *, regmatch_t);
 
 const char *argp_program_version = "@PACKAGE_NAME@ @PACKAGE_VERSION@";
@@ -66,7 +67,7 @@ main(int argc, char *argv[]) {
 
 	load_input_file();
 
-	start_deamon();
+	start_http_deamon();
 
 	return EXIT_SUCCESS;
 }
@@ -121,7 +122,7 @@ load_input_file() {
 }
 
 static void
-start_deamon() {
+start_http_deamon() {
 	ljs.httpd = MHD_start_daemon(MHD_USE_AUTO|MHD_USE_INTERNAL_POLLING_THREAD, ljs.server_port, NULL, NULL,
 				     &answer_to_connection, NULL, MHD_OPTION_END);
 
@@ -130,11 +131,27 @@ start_deamon() {
 		exit(EXIT_FAILURE);
 	}
 
-	signal(SIGINT, sigint_handler);
+	signal(SIGINT, sigint_signal_handler);
 
 	while (1) {
 		pause();
 	}
+}
+
+static void
+sigint_signal_handler(int sig) {
+	signal(sig, SIG_IGN);
+
+	MHD_stop_daemon(ljs.httpd);
+
+	if (ljs.input_file) {
+		printf("Writting changes to %s\n", ljs.input_file);
+		json_dump_file(ljs.root_node, ljs.input_file, JSON_COMPACT);
+	}
+
+	json_decref(ljs.root_node);
+
+	exit(EXIT_SUCCESS);
 }
 
 static int
@@ -180,11 +197,11 @@ answer_to_connection(void *cls, struct MHD_Connection *connection, const char *u
 	if (!regexec(&re, url, re.re_nsub, pmatch, 0)) {
 		int idx = 0;
 		struct http_handler_s handlers[] = {
-			{ MHD_HTTP_METHOD_GET, get_handler},
-			{ MHD_HTTP_METHOD_POST, post_handler},
-			{ MHD_HTTP_METHOD_PUT, put_handler},
-			{ MHD_HTTP_METHOD_PATCH, patch_handler},
-			{ MHD_HTTP_METHOD_DELETE, delete_handler},
+			{ MHD_HTTP_METHOD_GET, get_http_handler},
+			{ MHD_HTTP_METHOD_POST, post_http_handler},
+			{ MHD_HTTP_METHOD_PUT, put_http_handler},
+			{ MHD_HTTP_METHOD_PATCH, patch_http_handler},
+			{ MHD_HTTP_METHOD_DELETE, delete_http_handler},
 			{ NULL }
 		};
 
@@ -215,24 +232,8 @@ answer_to_connection(void *cls, struct MHD_Connection *connection, const char *u
 	return ret;
 }
 
-static void
-sigint_handler(int sig) {
-	signal(sig, SIG_IGN);
-
-	MHD_stop_daemon(ljs.httpd);
-
-	if (ljs.input_file) {
-		printf("Writting changes to %s\n", ljs.input_file);
-		json_dump_file(ljs.root_node, ljs.input_file, JSON_COMPACT);
-	}
-
-	json_decref(ljs.root_node);
-
-	exit(EXIT_SUCCESS);
-}
-
 static int
-get_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+get_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	int ret;
 
 	char *key = get_str(url, pmatch[1]);
@@ -276,7 +277,7 @@ get_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmat
 }
 
 static int
-post_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+post_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	int ret;
 
 	char *key = get_str(url, pmatch[1]);
@@ -302,22 +303,61 @@ post_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pma
 }
 
 static int
-put_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+put_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+	int ret;
+
+	char *key = get_str(url, pmatch[1]);
+	json_t *nodes = json_object_get(ljs.root_node, key);
+
+	if (nodes && json_is_array(nodes)) {
+		if (pmatch[2].rm_so != -1) {
+		  char *res = NULL;
+		  char *id = get_str(url, pmatch[2]);
+
+		  size_t index;
+		  json_t *node;
+		  json_array_foreach(nodes, index, node) {
+			if (json_is_object(node)) {
+				json_t *v = json_object_get(node, "id");
+
+				if (v && json_is_integer(v) && json_integer_value(v) == atol(id + 1)) {
+					res = json_dumps(node, JSON_COMPACT);
+					break;
+				}
+			}
+		  }
+
+		  if (res) {
+			ret = OK(connection, res);
+		  } else {
+			ret = NOT_FOUND(connection);
+		  }
+
+		  free(id);
+		} else {
+			ret = BAD_REQUEST(connection);
+		}
+	} else {
+		ret = NOT_FOUND(connection);
+	}
+
+	free(key);
+
+	return ret;
+}
+
+static int
+patch_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	return BAD_REQUEST(connection);
 }
 
 static int
-patch_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
+delete_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	return BAD_REQUEST(connection);
 }
 
 static int
-delete_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
-	return BAD_REQUEST(connection);
-}
-
-static int
-build_response(struct MHD_Connection *connection, int status_code, const char *buffer, int flag) {
+build_http_response(struct MHD_Connection *connection, int status_code, const char *buffer, int flag) {
 	struct MHD_Response *response = MHD_create_response_from_buffer(strlen(buffer), (void *)buffer, flag);
 	MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, "application/json");
 
