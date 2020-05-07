@@ -47,7 +47,7 @@ static int post_http_handler(struct MHD_Connection *, const char *, regmatch_t *
 static int put_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 static int delete_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
 static int build_http_response(struct MHD_Connection *, int, const char *, int);
-static char *get_str(const char *, regmatch_t);
+static char *get_match_str(const char *, regmatch_t);
 
 const char *argp_program_version = "@PACKAGE_NAME@ @PACKAGE_VERSION@";
 
@@ -164,12 +164,12 @@ sigint_signal_handler(int sig) {
 
 	MHD_stop_daemon(ljs.httpd);
 
+	regfree(ljs.url_regex);
+
 	if (ljs.input_file) {
 		printf("Writting changes to %s\n", ljs.input_file);
 		json_dump_file(ljs.root_node, ljs.input_file, JSON_COMPACT);
 	}
-
-	regfree(ljs.url_regex);
 
 	json_decref(ljs.root_node);
 
@@ -253,13 +253,13 @@ static int
 get_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	int ret;
 
-	char *key = get_str(url, pmatch[1]);
+	char *key = get_match_str(url, pmatch[1]);
 	json_t *nodes = json_object_get(ljs.root_node, key);
 
 	if (nodes && json_is_array(nodes)) {
 		if (pmatch[2].rm_so != -1) {
 		  char *res = NULL;
-		  char *id = get_str(url, pmatch[2]);
+		  char *id = get_match_str(url, pmatch[2]);
 
 		  size_t index;
 		  json_t *current;
@@ -297,7 +297,7 @@ static int
 post_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	int ret;
 
-	char *key = get_str(url, pmatch[1]);
+	char *key = get_match_str(url, pmatch[1]);
 	json_t *nodes = json_object_get(ljs.root_node, key);
 
 	if (nodes && json_is_array(nodes)) {
@@ -323,13 +323,13 @@ static int
 put_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	int ret;
 
-	char *key = get_str(url, pmatch[1]);
+	char *key = get_match_str(url, pmatch[1]);
 	json_t *nodes = json_object_get(ljs.root_node, key);
 
 	if (nodes && json_is_array(nodes)) {
 		if (pmatch[2].rm_so != -1) {
 		  char *res = NULL;
-		  char *id = get_str(url, pmatch[2]);
+		  char *id = get_match_str(url, pmatch[2]);
 
 		  size_t index;
 		  json_t *current;
@@ -374,13 +374,13 @@ static int
 delete_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t *pmatch, const char *string) {
 	int ret;
 
-	char *key = get_str(url, pmatch[1]);
+	char *key = get_match_str(url, pmatch[1]);
 	json_t *nodes = json_object_get(ljs.root_node, key);
 
 	if (nodes && json_is_array(nodes)) {
 		if (pmatch[2].rm_so != -1) {
 		  char *res = NULL;
-		  char *id = get_str(url, pmatch[2]);
+		  char *id = get_match_str(url, pmatch[2]);
 
 		  size_t index;
 		  json_t *current;
@@ -426,7 +426,7 @@ build_http_response(struct MHD_Connection *connection, int status_code, const ch
 }
 
 static char *
-get_str(const char *string, regmatch_t pmatch) {
+get_match_str(const char *string, regmatch_t pmatch) {
 	char *s = calloc(pmatch.rm_eo - pmatch.rm_so + 1, sizeof(char));
 	return strncpy(s, string + pmatch.rm_so, pmatch.rm_eo - pmatch.rm_so);
 }
