@@ -20,5 +20,6 @@ AC_CONFIG_FILES([
 	libs/Makefile
 	src/Makefile
 	src/ljs.c
+	tests/Makefile
 ])
 AC_OUTPUT

@@ -30,10 +30,10 @@ struct http_handler_s {
 
 #define OK(c, r) build_http_response(c, MHD_HTTP_OK, r, MHD_RESPMEM_MUST_FREE)
 
-#define BAD_REQUEST(c) build_http_response(c, MHD_HTTP_BAD_REQUEST, "{\"msg\": \"Bad request\"}", \
+#define BAD_REQUEST(c) build_http_response(c, MHD_HTTP_BAD_REQUEST, "{\"msg\":\"Bad request\"}", \
 					   MHD_RESPMEM_PERSISTENT)
 
-#define NOT_FOUND(c) build_http_response(c, MHD_HTTP_NOT_FOUND, "{\"msg\": \"Not found\"}", MHD_RESPMEM_PERSISTENT)
+#define NOT_FOUND(c) build_http_response(c, MHD_HTTP_NOT_FOUND, "{\"msg\":\"Not found\"}", MHD_RESPMEM_PERSISTENT)
 
 static error_t parse_command_line(int, char *, struct argp_state *);
 static void load_input_file();
