@@ -442,7 +442,7 @@ AM_TESTS_ENVIRONMENT = \
 	LJS=$(top_builddir)/src/ljs
 
 TESTS = \
-	test_get.sh \
+	test_get_all.sh \
 	test_get_by_id.sh \
 	test_not_found.sh
 
@@ -633,9 +633,9 @@ recheck: all
 	        am__force_recheck=am--force-recheck \
 	        TEST_LOGS="$$log_list"; \
 	exit $$?
-test_get.sh.log: test_get.sh
-	@p='test_get.sh'; \
-	b='test_get.sh'; \
+test_get_all.sh.log: test_get_all.sh
+	@p='test_get_all.sh'; \
+	b='test_get_all.sh'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
