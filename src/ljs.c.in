@@ -327,37 +327,34 @@ put_http_handler(struct MHD_Connection *connection, const char *url, regmatch_t 
 	json_t *nodes = json_object_get(ljs.root_node, key);
 
 	if (nodes && json_is_array(nodes)) {
-		if (pmatch[2].rm_so != -1) {
-		  char *res = NULL;
-		  char *id = get_match_str(url, pmatch[2]);
+		json_error_t error;
+		json_t *node = json_loads(string, 0, &error);
 
-		  size_t index;
-		  json_t *current;
-		  json_array_foreach(nodes, index, current) {
-			if (json_is_object(current)) {
-				json_t *v = json_object_get(current, "id");
+		if (node && pmatch[2].rm_so != -1) {
+			char *res = NULL;
+			char *id = get_match_str(url, pmatch[2]);
 
-				if (v && json_is_integer(v) && json_integer_value(v) == atol(id + 1)) {
-					json_error_t error;
-					json_t *node = json_loads(string, 0, &error);
+			size_t index;
+			json_t *current;
+			json_array_foreach(nodes, index, current) {
+				if (json_is_object(current)) {
+					json_t *v = json_object_get(current, "id");
 
-					if (node) {
+					if (v && json_is_integer(v) && json_integer_value(v) == atol(id + 1)) {
 						json_array_set_new(nodes, index, node);
 						res = json_dumps(node, JSON_COMPACT);
+						break;
 					}
-
-					break;
 				}
 			}
-		  }
 
-		  if (res) {
-			ret = OK(connection, res);
-		  } else {
-			ret = NOT_FOUND(connection);
-		  }
+			if (res) {
+				ret = OK(connection, res);
+			} else {
+				ret = NOT_FOUND(connection);
+			}
 
-		  free(id);
+			free(id);
 		} else {
 			ret = BAD_REQUEST(connection);
 		}

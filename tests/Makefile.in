@@ -443,6 +443,9 @@ AM_TESTS_ENVIRONMENT = \
 
 TESTS = \
 	test_get.sh \
+	test_post.sh \
+	test_put.sh \
+	test_delete.sh \
 	test_bad_request.sh \
 	test_not_found.sh
 
@@ -636,6 +639,27 @@ recheck: all
 test_get.sh.log: test_get.sh
 	@p='test_get.sh'; \
 	b='test_get.sh'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test_post.sh.log: test_post.sh
+	@p='test_post.sh'; \
+	b='test_post.sh'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test_put.sh.log: test_put.sh
+	@p='test_put.sh'; \
+	b='test_put.sh'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+test_delete.sh.log: test_delete.sh
+	@p='test_delete.sh'; \
+	b='test_delete.sh'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \

@@ -1,14 +1,11 @@
-#!/bin/bash
-set -ex
+#!/bin/sh
+set -eux
 
 echo '{"foo":[{"id":1,"bar":"baz"}]}' | $LJS &
-PID=$!
-trap "kill -s SIGINT $PID" EXIT
+trap "kill -2 $!" 0
 
-RES=`curl -s http://localhost:8080`
+res=`curl -s http://localhost:8080`
+test "$res" = '{"msg":"Not found"}'
 
-[ "$RES" == '{"msg":"Not found"}' ]
-
-RES=`curl -s http://localhost:8080/foo/bar`
-
-[ "$RES" == '{"msg":"Not found"}' ]
+res=`curl -s http://localhost:8080/foo/bar`
+test "$res" = '{"msg":"Not found"}'

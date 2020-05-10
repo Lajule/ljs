@@ -3,5 +3,8 @@ AM_TESTS_ENVIRONMENT = \
 
 TESTS = \
 	test_get.sh \
+	test_post.sh \
+	test_put.sh \
+	test_delete.sh \
 	test_bad_request.sh \
 	test_not_found.sh
