@@ -442,8 +442,8 @@ AM_TESTS_ENVIRONMENT = \
 	LJS=$(top_builddir)/src/ljs
 
 TESTS = \
-	test_get_all.sh \
-	test_get_by_id.sh \
+	test_get.sh \
+	test_bad_request.sh \
 	test_not_found.sh
 
 all: all-am
@@ -633,16 +633,16 @@ recheck: all
 	        am__force_recheck=am--force-recheck \
 	        TEST_LOGS="$$log_list"; \
 	exit $$?
-test_get_all.sh.log: test_get_all.sh
-	@p='test_get_all.sh'; \
-	b='test_get_all.sh'; \
+test_get.sh.log: test_get.sh
+	@p='test_get.sh'; \
+	b='test_get.sh'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
 	"$$tst" $(AM_TESTS_FD_REDIRECT)
-test_get_by_id.sh.log: test_get_by_id.sh
-	@p='test_get_by_id.sh'; \
-	b='test_get_by_id.sh'; \
+test_bad_request.sh.log: test_bad_request.sh
+	@p='test_bad_request.sh'; \
+	b='test_bad_request.sh'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
