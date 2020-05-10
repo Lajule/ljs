@@ -10,6 +10,24 @@ cd _build
 make
 ```
 
+## Usage
+
+```sh
+ljs --help
+Usage: ljs [OPTION...] [FILE]
+ljs -- Little JSON server
+
+  -p, --port=PORT            Server port (default 8080)
+  -?, --help                 Give this help list
+      --usage                Give a short usage message
+  -V, --version              Print program version
+
+Mandatory or optional arguments to long options are also mandatory or optional
+for any corresponding short options.
+
+Report bugs to <julien.rouzieres@mac.com>.
+```
+
 ## Run
 
 ```sh
