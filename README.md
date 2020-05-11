@@ -1,7 +1,14 @@
-# ljs
-Little JSON server
+ljs
+===
 
-## Build
+Little JSON Server is a "build your own" version of famous [JSON Server][1]
+written in less than 500 lines of C.
+
+[Libmicrohttpd][2]
+[Jansson][3]
+
+Build
+-----
 
 ```sh
 mkdir _build
@@ -10,7 +17,8 @@ cd _build
 make
 ```
 
-## Usage
+Usage
+-----
 
 ```sh
 ljs --help
@@ -28,7 +36,8 @@ for any corresponding short options.
 Report bugs to <julien.rouzieres@mac.com>.
 ```
 
-## Run
+Run
+---
 
 ```sh
 echo '{"foo":[{"id":1,"bar":"baz"}]}' | lsj
@@ -38,10 +47,15 @@ curl -s http://localhost:8080/foo/1
 {"id":1,"bar":"baz"}
 ```
 
-## Routes
+Routes
+------
 
 * GET /foo
 * GET /foo/:id
 * POST /foo
 * PUT /foo
 * DELETE /foo/:id
+
+[1]: https://github.com/typicode/json-server
+[2]: https://www.gnu.org/software/libmicrohttpd
+[3]: https://digip.org/jansson
