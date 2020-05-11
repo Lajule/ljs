@@ -2,13 +2,16 @@ ljs
 ===
 
 Little JSON Server is a "build your own" version of famous [JSON Server][1]
-written in less than 500 lines of C.
+written in less than 500 lines of C. This is possible by using following
+libraries:
 
-[Libmicrohttpd][2]
-[Jansson][3]
+* [Libmicrohttpd][2]: A HTTP server
+* [Jansson][3]: Encode, decode and manipulate JSON data
 
 Build
 -----
+
+ljs use [GNU Build System][4], to build the project simply type:
 
 ```sh
 mkdir _build
@@ -59,3 +62,5 @@ Routes
 [1]: https://github.com/typicode/json-server
 [2]: https://www.gnu.org/software/libmicrohttpd
 [3]: https://digip.org/jansson
+[4]: https://www.gnu.org/software/automake/manual/html_node/GNU-Build-System.html
+
