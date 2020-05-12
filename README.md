@@ -20,6 +20,12 @@ cd _build
 make
 ```
 
+You can check if everything is fine with:
+
+```sh
+make check
+```
+
 Usage
 -----
 
@@ -41,6 +47,20 @@ Report bugs to <julien.rouzieres@mac.com>.
 
 Run
 ---
+
+Consider following file `data.json`:
+
+```json
+{
+  "foo":[
+    {
+      "id":1,
+      "bar":"baz"
+    }
+  ]
+}
+```
+
 
 ```sh
 echo '{"foo":[{"id":1,"bar":"baz"}]}' | lsj
