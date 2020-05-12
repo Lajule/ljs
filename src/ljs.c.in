@@ -40,8 +40,8 @@ static void load_input_file();
 static void write_input_file();
 static void compile_url_regex();
 static void start_http_deamon();
-static void sigusr1_signal_handler(int);
-static void sigint_signal_handler(int);
+static void sigusr1_sig_handler(int);
+static void sigint_sig_handler(int);
 static int answer_to_connection(void *, struct MHD_Connection *, const char *, const char *, const char *, const char *,
 				size_t *, void **);
 static int get_http_handler(struct MHD_Connection *, const char *, regmatch_t *, const char *);
@@ -128,8 +128,6 @@ load_input_file() {
 	if (fd != stdin) {
 		fclose(fd);
 	}
-
-	signal(SIGUSR1, sigusr1_signal_handler);
 }
 
 static void
@@ -163,7 +161,8 @@ start_http_deamon() {
 		exit(EXIT_FAILURE);
 	}
 
-	signal(SIGINT, sigint_signal_handler);
+	signal(SIGUSR1, sigusr1_sig_handler);
+	signal(SIGINT, sigint_sig_handler);
 
 	while (1) {
 		pause();
@@ -171,14 +170,14 @@ start_http_deamon() {
 }
 
 static void
-sigusr1_signal_handler(int sig) {
+sigusr1_sig_handler(int sig) {
 	signal(sig, SIG_IGN);
 
 	write_input_file();
 }
 
 static void
-sigint_signal_handler(int sig) {
+sigint_sig_handler(int sig) {
 	signal(sig, SIG_IGN);
 
 	MHD_stop_daemon(ljs.httpd);
