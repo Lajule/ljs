@@ -69,7 +69,7 @@ Consider following JSON file `data.json`:
 }
 ```
 
-Running `lsj data.json` expose following routes :
+Running `ljs data.json` expose following routes :
 
 | Method | Route
 | ------ | -----
@@ -78,6 +78,37 @@ Running `lsj data.json` expose following routes :
 | POST | /foo
 | PUT | /foo/:id
 | DELETE | /foo/:id
+
+For example, to create a new node:
+
+```sh
+curl -X POST -d '{"id":2,"bar":"baz"}' http://localhost:8080/foo
+{"id":2,"bar":"baz"}
+```
+
+Or to update an existing one:
+
+```sh
+curl -X PUT -d '{"id":2,"baz":"bar"}' http://localhost:8080/foo/2
+{"id":2,"baz":"bar"}
+```
+
+Signals
+-------
+
+You can send two signals to ljs:
+
+* `SIGINT` to stop ljs and write changes to input files
+* `SIGUSR1` to write changes to input files
+
+> Send `SIGKILL` if you don't want to save changes.
+
+Typically, for an existing ljs PID:
+
+```sh
+kill -s SIGINT $PID
+Writting changes to data.json
+```
 
 [1]: https://github.com/typicode/json-server
 [2]: https://www.gnu.org/software/libmicrohttpd
