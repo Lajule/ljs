@@ -96,17 +96,11 @@ curl -X PUT -d '{"id":2,"baz":"bar"}' http://localhost:8080/foo/2
 Signals
 -------
 
-You can send two signals to ljs:
-
-* `SIGINT` to stop ljs and write changes to input files
-* `SIGUSR1` to write changes to input files
-
-> Send `SIGKILL` if you don't want to save changes.
-
-Typically, for an existing ljs PID:
+You can send `SIGUSR1` to ljs to write changes to input files, typically, for
+an existing ljs PID:
 
 ```sh
-kill -s SIGINT $PID
+kill -s SIGUSR1 $PID
 Writting changes to data.json
 ```
 

@@ -37,7 +37,6 @@ struct http_handler_s {
 
 static error_t parse_command_line(int, char *, struct argp_state *);
 static void load_input_file();
-static void write_input_file();
 static void compile_url_regex();
 static void start_http_deamon();
 static void sigusr1_sig_handler(int);
@@ -128,14 +127,8 @@ load_input_file() {
 	if (fd != stdin) {
 		fclose(fd);
 	}
-}
 
-static void
-write_input_file() {
-	if (ljs.input_file) {
-		printf("Writting changes to %s\n", ljs.input_file);
-		json_dump_file(ljs.root_node, ljs.input_file, JSON_COMPACT);
-	}
+	signal(SIGUSR1, sigusr1_sig_handler);
 }
 
 static void
@@ -161,7 +154,6 @@ start_http_deamon() {
 		exit(EXIT_FAILURE);
 	}
 
-	signal(SIGUSR1, sigusr1_sig_handler);
 	signal(SIGINT, sigint_sig_handler);
 
 	while (1) {
@@ -173,7 +165,10 @@ static void
 sigusr1_sig_handler(int sig) {
 	signal(sig, SIG_IGN);
 
-	write_input_file();
+	if (ljs.input_file) {
+		printf("Writting changes to %s\n", ljs.input_file);
+		json_dump_file(ljs.root_node, ljs.input_file, JSON_COMPACT);
+	}
 }
 
 static void
@@ -183,8 +178,6 @@ sigint_sig_handler(int sig) {
 	MHD_stop_daemon(ljs.httpd);
 
 	regfree(ljs.url_regex);
-
-	write_input_file();
 
 	json_decref(ljs.root_node);
 
