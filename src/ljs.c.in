@@ -143,7 +143,7 @@ compile_url_regex()
 
 static void
 start_http_deamon() {
-	ljs.httpd = MHD_start_daemon(MHD_USE_AUTO|MHD_USE_INTERNAL_POLLING_THREAD, ljs.server_port, NULL, NULL,
+	ljs.httpd = MHD_start_daemon(MHD_USE_AUTO_INTERNAL_THREAD, ljs.server_port, NULL, NULL,
 				     &answer_to_connection, NULL, MHD_OPTION_END);
 
 	if (!ljs.httpd) {
