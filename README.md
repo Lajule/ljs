@@ -29,6 +29,8 @@ make check
 Usage
 -----
 
+ljs has the following usage:
+
 ```sh
 ljs --help
 Usage: ljs [OPTION...] [FILE]
@@ -44,6 +46,12 @@ for any corresponding short options.
 
 Report bugs to <julien.rouzieres@mac.com>.
 ```
+
+Examples:
+
+* `ljs -p 9000`
+* `ljs -p 9000 data.json`
+* `echo '{"foo":[{"id":1,"bar":"baz"}]}' | ljs -p 9000`
 
 Run
 ---
