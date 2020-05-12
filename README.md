@@ -49,14 +49,14 @@ Report bugs to <julien.rouzieres@mac.com>.
 
 Examples:
 
-* `ljs -p 9000`
+* `ljs data.json`
 * `ljs -p 9000 data.json`
 * `echo '{"foo":[{"id":1,"bar":"baz"}]}' | ljs -p 9000`
 
-Run
----
+Routes
+------
 
-Consider following file `data.json`:
+Consider following JSON file `data.json`:
 
 ```json
 {
@@ -69,23 +69,15 @@ Consider following file `data.json`:
 }
 ```
 
+Running `lsj data.json` expose following routes :
 
-```sh
-echo '{"foo":[{"id":1,"bar":"baz"}]}' | lsj
-curl -s http://localhost:8080/foo
-[{"id":1,"bar":"baz"}]
-curl -s http://localhost:8080/foo/1
-{"id":1,"bar":"baz"}
-```
-
-Routes
-------
-
-* GET /foo
-* GET /foo/:id
-* POST /foo
-* PUT /foo
-* DELETE /foo/:id
+| Method | Route
+| ------ | -----
+| GET | /foo
+| GET | /foo/:id
+| POST | /foo
+| PUT | /foo/:id
+| DELETE | /foo/:id
 
 [1]: https://github.com/typicode/json-server
 [2]: https://www.gnu.org/software/libmicrohttpd
