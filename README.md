@@ -96,7 +96,7 @@ curl -X PUT -d '{"id":2,"baz":"bar"}' http://localhost:8080/foo/2
 Signals
 -------
 
-You can send `SIGUSR1` to ljs to write changes to input files, typically, for
+You can send `SIGUSR1` to ljs to write changes to input file, typically, for
 an existing ljs PID:
 
 ```sh
