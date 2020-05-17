@@ -7,9 +7,7 @@ AC_PROG_CC
 AC_PROG_LIBTOOL
 
 AC_HEADER_STDC
-AC_CHECK_HEADERS([argp.h signal])
-
-AC_CHECK_LIB(pthread, pthread_create)
+AC_CHECK_HEADERS([argp.h signal.h])
 
 AC_CONFIG_SUBDIRS([
 	libs/jansson
