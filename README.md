@@ -11,7 +11,7 @@ libraries:
 Build
 -----
 
-ljs use [GNU Build System][4], to build the project simply type:
+ljs uses [GNU Build System][4], to build the project simply type:
 
 ```sh
 mkdir _build
@@ -69,7 +69,7 @@ Consider following JSON file `data.json`:
 }
 ```
 
-Running `ljs data.json` expose following routes :
+Running `ljs data.json` exposes following routes :
 
 | Method | Route
 | ------ | -----
@@ -108,4 +108,3 @@ Writting changes to data.json
 [2]: https://www.gnu.org/software/libmicrohttpd
 [3]: https://digip.org/jansson
 [4]: https://www.gnu.org/software/automake/manual/html_node/GNU-Build-System.html
-
