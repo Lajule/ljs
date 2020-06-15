@@ -44,7 +44,9 @@ static error_t parse_command_line(int, char *, struct argp_state *);
 static void load_input_file();
 static void compile_url_regex();
 static void start_http_deamon();
+static void run_ljs();
 static void sigusr1_sig_handler(int);
+static void sigusr2_sig_handler(int);
 static void sigint_sig_handler(int);
 static int answer_to_connection(void *, struct MHD_Connection *, const char *,
 				const char *, const char *, const char *,
@@ -80,6 +82,7 @@ int main(int argc, char *argv[]) {
 	load_input_file();
 	compile_url_regex();
 	start_http_deamon();
+	run_ljs();
 	return EXIT_SUCCESS;
 }
 
@@ -125,7 +128,6 @@ static void load_input_file() {
 	if (fd != stdin) {
 		fclose(fd);
 	}
-	signal(SIGUSR1, sigusr1_sig_handler);
 }
 
 static void compile_url_regex()
@@ -148,6 +150,11 @@ static void start_http_deamon() {
 		fputs("@PACKAGE_NAME@: Can not start deamon\n", stderr);
 		exit(EXIT_FAILURE);
 	}
+}
+
+static void run_ljs() {
+	signal(SIGUSR1, sigusr1_sig_handler);
+	signal(SIGUSR2, sigusr2_sig_handler);
 	signal(SIGINT, sigint_sig_handler);
 	while (1) {
 		pause();
@@ -159,6 +166,15 @@ static void sigusr1_sig_handler(int sig) {
 	if (ljs.input_file) {
 		printf("Writting changes to %s\n", ljs.input_file);
 		json_dump_file(ljs.root_node, ljs.input_file, JSON_COMPACT);
+	}
+}
+
+static void sigusr2_sig_handler(int sig) {
+	signal(sig, SIG_IGN);
+	if (ljs.input_file) {
+		printf("Loading changes from %s\n", ljs.input_file);
+		json_decref(ljs.root_node);
+		load_input_file();
 	}
 }
 
