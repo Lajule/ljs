@@ -48,6 +48,7 @@ static void run_ljs();
 static void sigusr1_sig_handler(int);
 static void sigusr2_sig_handler(int);
 static void sigint_sig_handler(int);
+static void *log_request(void *, const char *, struct MHD_Connection *);
 static int answer_to_connection(void *, struct MHD_Connection *, const char *,
 				const char *, const char *, const char *,
 				size_t *, void **);
@@ -145,6 +146,8 @@ static void start_http_deamon() {
 	ljs.httpd = MHD_start_daemon(MHD_USE_AUTO_INTERNAL_THREAD,
 				     ljs.server_port, NULL, NULL,
 				     &answer_to_connection, NULL,
+				     MHD_OPTION_URI_LOG_CALLBACK,
+				     &log_request, NULL,
 				     MHD_OPTION_END);
 	if (!ljs.httpd) {
 		fputs("@PACKAGE_NAME@: Can not start deamon\n", stderr);
@@ -184,6 +187,12 @@ static void sigint_sig_handler(int sig) {
 	regfree(ljs.url_regex);
 	json_decref(ljs.root_node);
 	exit(EXIT_SUCCESS);
+}
+
+static void *log_request(void *cls, const char *uri,
+			 struct MHD_Connection *connection) {
+	printf("@PACKAGE_NAME@: %s\n", uri);
+	return NULL;
 }
 
 static int answer_to_connection(void *cls, struct MHD_Connection *connection,
