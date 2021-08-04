@@ -131,8 +131,7 @@ static void load_input_file() {
 	}
 }
 
-static void compile_url_regex()
-{
+static void compile_url_regex() {
 	ljs.url_regex = calloc(1, sizeof(regex_t));
 	if (!ljs.url_regex) {
 		fputs("@PACKAGE_NAME@: Can not create regular expression\n",
