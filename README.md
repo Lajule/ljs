@@ -1,7 +1,7 @@
 ljs
 ===
 
-Little JSON Server is a "build your own" version of famous [JSON Server][1]
+Little JSON Server is a "build your own" version of the famous [JSON Server][1]
 written in less than 500 lines of C. This is possible by using following
 libraries:
 
